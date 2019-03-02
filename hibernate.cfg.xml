@@ -46,12 +46,8 @@ Contributor(s):
     <property name="hibernate.connection.driver_class">com.mysql.jdbc.Driver</property>
     <property name="hibernate.connection.url">jdbc:mysql://192.168.191.128:3306/ims?zeroDateTimeBehavior=convertToNull</property>
     <property name="hibernate.connection.username">root</property>
-    <property name="hibernate.connection.password">root</property>
-    <!--        <property name="hibernate.c3p0.min_size">5</property>
-        <property name="hibernate.c3p0.max_size">10</property>
-        <property name="hibernate.c3p0.timeout">300</property>
-        <property name="hibernate.c3p0.max_statements">50</property>
-        <property name="hibernate.c3p0.idle_test_period">3000</property>-->
+    <property name="hibernate.connection.password">**********</property>
+    
     
     <mapping class="stocks.Brand" />
     <mapping class="stocks.Category" />
