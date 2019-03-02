@@ -11,6 +11,7 @@ this class is developed using HQL hibernate query language.
 2.insert to table.
 3.update record.
 5.delete record.
+6.download Gson library.
 ```
 ## usage:
 ```
