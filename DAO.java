@@ -152,65 +152,9 @@ public class DAO<T> {
 
     }
 
-//    public <T> List<T> getWhereCondition(String className, List<Conditions> conditions) {
-//        List<T> list = new ArrayList<>();
-//        Session s = HibernateUtil.getInstance().getFactory().openSession();
-//        String condition = "";
-//        for (Conditions con : conditions) {
-//            switch (con.getOperation()) {
-//                case "=": {
-//                    if ("".equals(condition)) {
-//
-//                        condition = condition + " where " + con.getWhere() + " =" + con.getValue();
-//
-//                    } else {
-//                        condition = condition + " and " + con.getWhere() + " =" + con.getValue();
-//                    }
-//                    break;
-//                }
-//                case "like": {
-//                    if ("".equals(condition)) {
-//
-//                        condition = condition + " where " + con.getWhere() + " like %" + con.getValue() + "%";
-//
-//                    } else {
-//                        condition = condition + " and " + con.getWhere() + " like %" + con.getValue() + "%";
-//                    }
-//                    break;
-//                }
-//                case "in": {
-//                    if ("".equals(condition)) {
-//
-//                        condition = condition + " where " + con.getWhere() + " in (" + con.getValue() + ")";
-//
-//                    } else {
-//                        condition = condition + " and " + con.getWhere() + " in (" + con.getValue() + ")";
-//                    }
-//                    break;
-//                }
-//
-//            }
-//
-//        }
-//
-//        Query q = s.createQuery("from " + className + " " + condition);
-//
-//        if (q.list().size() > 0) {
-//            for (Object list1 : q.list()) {
-//                list.add((T) list1);
-//            }
-//
-//            s.close();
-//            System.out.println("List Size  =" + list.size());
-//            return list;
-//        } else {
-//            s.close();
-//            return list;
-//        }
-//
-//    }
 
-    public String getJoinOn(String className, List<Conditions> conditions) throws ParseException {
+
+    public String getWhere(String className, List<Conditions> conditions) throws ParseException {
         Gson gson = new GsonBuilder().setDateFormat("yyyy-MM-dd ").create();
         TypeAdapter<java.util.Date> dateTypeAdapter = gson.getAdapter(java.util.Date.class);
         TypeAdapter<java.util.Date> safeDateTypeAdapter = dateTypeAdapter.nullSafe();
