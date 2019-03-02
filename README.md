@@ -1,5 +1,6 @@
 # generic-Hibernate-DAO
 This is a single DAO java class, this class is generic can serve all your mapped database tables
+```
 this class is developed using HQL hibernate query language.
 ## supported operations are :
 1.get all.
