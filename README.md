@@ -9,14 +9,14 @@ this class is developed using HQL hibernate query language.
 1.get all.
 2.get on condition.
 2.insert to table.
-3.update record;
-5.delete record;
+3.update record.
+5.delete record.
 ```
 ## usage:
 ```
 1.download the files (DAO+Condtition).java.
 2.add the hibernate library to your project class path.
 3.configure your hibernate and map your class using the .hbm.xml file 
-4.create entities from your database table;
+4.create entities from your database table.
 
 ```
