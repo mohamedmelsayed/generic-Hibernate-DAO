@@ -1,9 +1,11 @@
+package dao;
+
 /*
  * To change this license header, choose License Headers in Project Properties.
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package genericCTL;
+
 
 import callingObjects.Conditions;
 import com.google.gson.Gson;
@@ -11,7 +13,6 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.TypeAdapter;
 import static com.sun.org.apache.xalan.internal.lib.ExsltDatetime.date;
 import static com.sun.org.apache.xalan.internal.lib.ExsltDatetime.date;
-import com.sun.xml.wss.util.DateUtils;
 import errors.ErrorMessages;
 import java.sql.Date;
 import java.text.DateFormat;
@@ -24,7 +25,6 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
-import model.alienAndEntry.Approval;
 import org.hibernate.HibernateException;
 import org.hibernate.Query;
 import org.hibernate.Session;
@@ -152,9 +152,7 @@ public class DAO<T> {
 
     }
 
-
-
-    public String getWhere(String className, List<Conditions> conditions) throws ParseException {
+    public String getWhere(String className, List<Conditions> conditions,String orderbyColumn,String dir) throws ParseException {
         Gson gson = new GsonBuilder().setDateFormat("yyyy-MM-dd ").create();
         TypeAdapter<java.util.Date> dateTypeAdapter = gson.getAdapter(java.util.Date.class);
         TypeAdapter<java.util.Date> safeDateTypeAdapter = dateTypeAdapter.nullSafe();
@@ -261,6 +259,10 @@ public class DAO<T> {
 
             }
 
+        }
+        System.out.println("ordervy ="+orderbyColumn);
+        if(!"".equals(orderbyColumn)){
+            condition = condition + "order by "+orderbyColumn+" "+dir;
         }
         try {
 
@@ -372,3 +374,4 @@ public class DAO<T> {
     }
 
 }
+
