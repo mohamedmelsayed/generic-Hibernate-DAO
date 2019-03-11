@@ -8,8 +8,13 @@ this class is developed using HQL hibernate query language.
 ```
 1.get all.
 2.get on condition.
+  a.attribute = value
+  b.attribute like value.
+  c.attribute > | < value.
+  d.attibute in (values).
 2.insert to table.
-3.update record.
+3.orderby attribute , dir(asc or desc).
+4.update record.
 5.delete record.
 ```
 ## usage:
