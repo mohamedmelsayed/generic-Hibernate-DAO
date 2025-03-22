@@ -1,377 +1,434 @@
 package dao;
 
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
-
-
-import callingObjects.Conditions;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.TypeAdapter;
-import static com.sun.org.apache.xalan.internal.lib.ExsltDatetime.date;
-import static com.sun.org.apache.xalan.internal.lib.ExsltDatetime.date;
-import errors.ErrorMessages;
-import java.sql.Date;
-import java.text.DateFormat;
+import java.io.Serializable;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.time.Instant;
-import java.time.temporal.TemporalUnit;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Iterator;
+import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+import javax.persistence.criteria.CriteriaBuilder;
+import javax.persistence.criteria.CriteriaQuery;
+import javax.persistence.criteria.Order;
+import javax.persistence.criteria.Predicate;
+import javax.persistence.criteria.Root;
+
 import org.hibernate.HibernateException;
-import org.hibernate.Query;
 import org.hibernate.Session;
+import org.hibernate.SessionFactory;
 import org.hibernate.Transaction;
-import utilities.DateUtil;
-import utilities.HibernateUtil;
+import org.hibernate.query.Query;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
 
 /**
+ * Generic Data Access Object (DAO) implementation providing CRUD operations
+ * for entity objects using Hibernate.
  *
- * @author MOH OSMAN
- * @param <T>
+ * @author Improved version
+ * @param <T> The entity type this DAO manages
+ * @param <ID> The type of the entity's primary key
  */
-public class DAO<T> {
+public class GenericDAO<T, ID extends Serializable> {
 
-//    HibernateUtil h;
-    public DAO() {
-//        h = new HibernateUtil();
+    private static final Logger LOGGER = Logger.getLogger(GenericDAO.class.getName());
+    private final Class<T> entityClass;
+    private final SessionFactory sessionFactory;
+    private final Gson gson;
 
-    }
-
-    /*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
+    /**
+     * Constructs a new GenericDAO for the specified entity class.
+     * 
+     * @param entityClass The class of the entity this DAO manages
+     * @param sessionFactory The Hibernate SessionFactory to use
      */
-    public boolean insert(T entity) {
-        // code to save entity details to database
-        Session session = HibernateUtil.getInstance().getFactory().openSession();
-        try {
-            System.out.println("" + entity.toString());
-
-            Transaction transaction = session.getTransaction();
-            transaction.begin();
-//            Approval app=(Approval) entity;
-            session.persist(entity);
-            transaction.commit();
-            session.close();
-            return true;
-        } catch (HibernateException ex) {
-            ex.printStackTrace();
-            System.out.println("" + ex.getMessage());
-            session.close();
-            return false;
-        }
-
-    }
-
-    public boolean delete(String className, String column, String value) {
-        // code to save entity details to database
-        Session session = HibernateUtil.getInstance().getFactory().openSession();
-        System.out.println("" + className + "\n" + column + "\n" + value);
-        Transaction transaction = session.beginTransaction();
-        try {
-            // your code
-//            String hql = "delete from Vote where uid= :uid AND pid= :pid";
-            String hql = "delete " + className + " where " + column + " ='" + value + "'";
-            Query query = session.createQuery(hql);
-//            System.out.println(user.getUid() + " and pid: " + pid);
-
-            System.out.println(query.executeUpdate());
-            // your code end
-
-            transaction.commit();
-            session.close();
-            return true;
-        } catch (Throwable t) {
-            transaction.rollback();
-            session.close();
-            return false;
-
-        }
-
-    }
-
-    public boolean update(T entity) {
-        Session session = HibernateUtil.getInstance().getFactory().openSession();
-        // code to save entity details to database
-        // code to save entity details to database
-        try {
-
-            Transaction transaction = session.getTransaction();
-            transaction.begin();
-            session.update(entity);
-            transaction.commit();
-            session.close();
-            return true;
-        } catch (HibernateException ex) {
-            ex.printStackTrace();
-            session.close();
-            return false;
-        }
-    }
-
-    public T getUnique(String className, String column, String value) {
-        Session s = HibernateUtil.getInstance().getFactory().openSession();
-        Query q = s.createQuery("from " + className + " where " + column + " ='" + value + "'");
-
-        if (q.list().size() > 0) {
-            Object o = q.list().get(0);
-            s.close();
-            return (T) o;
-        } else {
-            s.close();
-            return null;
-        }
-
-    }
-
-    public <T> List<T> get(String className, String column, String value) {
-        List<T> list = new ArrayList<>();
-        Session s = HibernateUtil.getInstance().getFactory().openSession();
-        Query q = s.createQuery("from " + className + " where " + column + "='" + value + "'");
-
-        if (q.list().size() > 0) {
-            for (Object list1 : q.list()) {
-                list.add((T) list1);
-            }
-
-            s.close();
-            return list;
-        } else {
-            s.close();
-            return list;
-        }
-
-    }
-
-    public String getWhere(String className, List<Conditions> conditions,String orderbyColumn,String dir) throws ParseException {
-        Gson gson = new GsonBuilder().setDateFormat("yyyy-MM-dd ").create();
-        TypeAdapter<java.util.Date> dateTypeAdapter = gson.getAdapter(java.util.Date.class);
-        TypeAdapter<java.util.Date> safeDateTypeAdapter = dateTypeAdapter.nullSafe();
-        Gson gsonSafe = new GsonBuilder()
+    public GenericDAO(Class<T> entityClass, SessionFactory sessionFactory) {
+        this.entityClass = entityClass;
+        this.sessionFactory = sessionFactory;
+        this.gson = new GsonBuilder()
                 .setDateFormat("yyyy-MM-dd HH:mm:ss")
-                .registerTypeAdapter(java.util.Date.class, safeDateTypeAdapter)
+                .serializeNulls()
                 .create();
-        List<T> list = new ArrayList<>();
-        List<String> tableNames;
-        Session s = HibernateUtil.getInstance().getFactory().openSession();
-        String select = "";
-        if (!"".equals(className)) {
-            tableNames = Arrays.asList(className.split(","));
+    }
 
-            for (String tableName : tableNames) {
-                if (tableNames.size() > 1) {
-                    if ("".equals(select)) {
-                        select = select + "select " + tableName.substring(0, 3) + " from " + tableName + " " + tableName.substring(0, 3) + " inner join " + tableName.substring(0, 3) + ".";
-                    } else {
-                        select = select + tableName + " ";
-                    }
-                } else {
-                    select = select + "from " + tableName;
-                }
+    /**
+     * Opens a new Hibernate session.
+     * 
+     * @return A new Hibernate Session
+     */
+    protected Session openSession() {
+        return sessionFactory.openSession();
+    }
+
+    /**
+     * Persists a new entity to the database.
+     * 
+     * @param entity The entity to persist
+     * @return The persisted entity with potentially generated ID
+     * @throws DAOException If an error occurs during the operation
+     */
+    public T create(T entity) throws DAOException {
+        try (Session session = openSession()) {
+            Transaction tx = session.beginTransaction();
+            try {
+                session.persist(entity);
+                tx.commit();
+                LOGGER.log(Level.INFO, "Entity created successfully: {0}", entity);
+                return entity;
+            } catch (HibernateException ex) {
+                tx.rollback();
+                LOGGER.log(Level.SEVERE, "Error creating entity", ex);
+                throw new DAOException("Failed to create entity", ex);
             }
-
         }
-        String condition = "";
-        for (Conditions con : conditions) {
-            switch (con.getOperation()) {
-                case "=": {
-                    if ("".equals(condition)) {
+    }
 
-                        condition = condition + " where " + con.getWhere() + " =" + con.getValue() + " ";
-
-                    } else {
-                        condition = condition + " and " + con.getWhere() + " =" + con.getValue() + " ";
-                    }
-                    break;
-                }
-                case ">": {
-
-                    if ("".equals(condition)) {
-
-                        condition = condition + " where " + con.getWhere() + " > " + con.getValue() + " ";
-
-                    } else {
-                        condition = condition + " and " + con.getWhere() + " > " + con.getValue() + " ";
-                    }
-                    break;
-                }
-                case "<": {
-                    if ("".equals(condition)) {
-
-                        condition = condition + " where " + con.getWhere() + " < " + con.getValue() + " ";
-
-                    } else {
-                        condition = condition + " and " + con.getWhere() + " < " + con.getValue() + " ";
-                    }
-                    break;
-                }
-                case ">date": {
-
-                    if ("".equals(condition)) {
-
-                        condition = condition + " where " + con.getWhere() + " > :" + con.getWhere() + " ";
-
-                    } else {
-                        condition = condition + " and " + con.getWhere() + " > :" + con.getWhere() + "2" + " ";
-                    }
-                    break;
-                }
-                case "<date": {
-                    if ("".equals(condition)) {
-
-                        condition = condition + " where " + con.getWhere() + " < :" + con.getWhere() + " ";
-
-                    } else {
-                        condition = condition + " and " + con.getWhere() + " < :" + con.getWhere() + "2" + " ";
-                    }
-                    break;
-                }
-
-                case "like": {
-                    if ("".equals(condition)) {
-
-                        condition = condition + " where " + con.getWhere() + " like :" + con.getWhere() + " ";
-
-                    } else {
-                        condition = condition + " and " + con.getWhere() + " like :" + con.getWhere() + " ";
-                    }
-                    break;
-                }
-                case "in": {
-                    if ("".equals(condition)) {
-
-                        condition = condition + " where " + con.getWhere() + " in (" + con.getValue() + ") ";
-
-                    } else {
-                        condition = condition + " and " + con.getWhere() + " in (" + con.getValue() + ") ";
-                    }
-                    break;
-                }
-
-            }
-
-        }
-        System.out.println("ordervy ="+orderbyColumn);
-        if(!"".equals(orderbyColumn)){
-            condition = condition + "order by "+orderbyColumn+" "+dir;
-        }
-        try {
-
-            int count = 1;
-            Query q = s.createQuery(select + " " + condition);
-            for (Conditions con : conditions) {
-               if(con.getOperation().equals("like")){
-                q.setParameter(con.getWhere(), con.getValue());
-            }
-                if (con.getWhere().contains("Date") && (con.getOperation().equals(">") || con.getOperation().equals("<"))) {
-                    DateFormat format = new SimpleDateFormat("dd-MMM-yy", Locale.ENGLISH);
-                    java.util.Date utilDate = format.parse(con.getValue());
-                    System.out.println("" + con.getValue());
-                    System.out.println("" + utilDate);
-
-                    if (count == 1) {
-                        q.setParameter(con.getWhere(), utilDate);
-                        count++;
-                        System.out.println(con.getWhere().indexOf("Date"));
-
-                    } else {
-                        q.setParameter(con.getWhere() + "2", utilDate);
-                    }
-
-                }
-               
-
-            }
-
-            if (q.list().size() > 0) {
-                for (Iterator it = q.list().iterator(); it.hasNext();) {
-                    Object list1 = it.next();
-                    list.add((T) list1);
-                }
-
-                s.close();
-                System.out.println(gsonSafe.toJson(list));
-                System.out.println("List Size  =" + list.size());
-                return gsonSafe.toJson(list);
-            } else {
-                s.close();
-                errors.ErrorMessages error = new ErrorMessages();
-                error.setError_code(7);
-                error.setError_description("No data Availble on table " + className);
-                return gson.toJson(error);
-
-            }
-
+    /**
+     * Retrieves an entity by its ID.
+     * 
+     * @param id The ID of the entity to retrieve
+     * @return An Optional containing the entity if found, empty otherwise
+     * @throws DAOException If an error occurs during the operation
+     */
+    public Optional<T> findById(ID id) throws DAOException {
+        try (Session session = openSession()) {
+            T entity = session.get(entityClass, id);
+            return Optional.ofNullable(entity);
         } catch (HibernateException ex) {
-            s.close();
-            errors.ErrorMessages error = new ErrorMessages();
-            error.setError_code(9);
-            error.setError_description(ex.getMessage() + " check the condition column names");
-            return gson.toJson(error);
+            LOGGER.log(Level.SEVERE, "Error finding entity by ID: " + id, ex);
+            throw new DAOException("Failed to find entity by ID: " + id, ex);
         }
-
     }
 
-    public <T> List<T> getLike(String className, String column, String value) {
-        List<T> list = new ArrayList<>();
-        Session s = HibernateUtil.getInstance().getFactory().openSession();
-//        Query q = s.createQuery("from " + className + " where " + column + "like:" + column );
+    /**
+     * Retrieves all entities of the managed type.
+     * 
+     * @return A list of all entities, or an empty list if none exist
+     * @throws DAOException If an error occurs during the operation
+     */
+    public List<T> findAll() throws DAOException {
+        try (Session session = openSession()) {
+            CriteriaBuilder cb = session.getCriteriaBuilder();
+            CriteriaQuery<T> cq = cb.createQuery(entityClass);
+            Root<T> root = cq.from(entityClass);
+            cq.select(root);
+            
+            return session.createQuery(cq).getResultList();
+        } catch (HibernateException ex) {
+            LOGGER.log(Level.SEVERE, "Error finding all entities", ex);
+            throw new DAOException("Failed to retrieve all entities", ex);
+        }
+    }
 
-        java.util.Date todayMorning = DateUtil.setZero(java.util.Date.from(Instant.now()));
-        java.util.Date todayEvening = DateUtil.addDays(todayMorning, 1);//.truncatedTo((TemporalUnit) dateFormat));
-        Query q2 = s.createQuery("from " + className + " where " + column + " between :current_date and :tomorrow")
-                .setParameter("current_date", todayMorning)
-                .setParameter("tomorrow", todayEvening);
-
-        if (q2.list().size() > 0) {
-            for (Object list1 : q2.list()) {
-                list.add((T) list1);
+    /**
+     * Updates an existing entity in the database.
+     * 
+     * @param entity The entity to update
+     * @return The updated entity
+     * @throws DAOException If an error occurs during the operation
+     */
+    public T update(T entity) throws DAOException {
+        try (Session session = openSession()) {
+            Transaction tx = session.beginTransaction();
+            try {
+                T mergedEntity = (T) session.merge(entity);
+                tx.commit();
+                LOGGER.log(Level.INFO, "Entity updated successfully: {0}", entity);
+                return mergedEntity;
+            } catch (HibernateException ex) {
+                tx.rollback();
+                LOGGER.log(Level.SEVERE, "Error updating entity", ex);
+                throw new DAOException("Failed to update entity", ex);
             }
-
-            s.close();
-            return list;
-        } else {
-            s.close();
-            return list;
         }
-
     }
 
-    public <T> List<T> getAll(String className) {
-        List<T> list = new ArrayList<>();
-        System.out.println("ghgfdhhdfghdfghdfghdfghdfg\n *****" + className);
-        Session s = HibernateUtil.getInstance().getFactory().openSession();
-        Query q = s.createQuery("from " + className);
-        System.out.println("85/n" + q.list().size());
-        try {
-            if (q.list().size() > 0) {
-                for (Object list1 : q.list()) {
-                    list.add((T) list1);
-                    System.out.println("" + list1.toString());
+    /**
+     * Deletes an entity from the database.
+     * 
+     * @param entity The entity to delete
+     * @throws DAOException If an error occurs during the operation
+     */
+    public void delete(T entity) throws DAOException {
+        try (Session session = openSession()) {
+            Transaction tx = session.beginTransaction();
+            try {
+                session.remove(entity);
+                tx.commit();
+                LOGGER.log(Level.INFO, "Entity deleted successfully: {0}", entity);
+            } catch (HibernateException ex) {
+                tx.rollback();
+                LOGGER.log(Level.SEVERE, "Error deleting entity", ex);
+                throw new DAOException("Failed to delete entity", ex);
+            }
+        }
+    }
+
+    /**
+     * Deletes an entity by its ID.
+     * 
+     * @param id The ID of the entity to delete
+     * @return true if the entity was deleted, false if no entity with the given ID exists
+     * @throws DAOException If an error occurs during the operation
+     */
+    public boolean deleteById(ID id) throws DAOException {
+        try (Session session = openSession()) {
+            Transaction tx = session.beginTransaction();
+            try {
+                T entity = session.get(entityClass, id);
+                if (entity != null) {
+                    session.remove(entity);
+                    tx.commit();
+                    LOGGER.log(Level.INFO, "Entity deleted successfully with ID: {0}", id);
+                    return true;
+                } else {
+                    tx.rollback();
+                    LOGGER.log(Level.INFO, "No entity found with ID: {0}", id);
+                    return false;
                 }
-
-                s.close();
-                return list;
-            } else {
-                s.close();
-                return null;
+            } catch (HibernateException ex) {
+                tx.rollback();
+                LOGGER.log(Level.SEVERE, "Error deleting entity with ID: " + id, ex);
+                throw new DAOException("Failed to delete entity with ID: " + id, ex);
             }
-        } catch (HibernateException ez) {
-            System.out.println(ez.getMessage());
-            s.close();
-            return null;
         }
-
     }
 
-}
+    /**
+     * Finds entities by a specific field value.
+     * 
+     * @param fieldName The name of the field to match
+     * @param value The value to match
+     * @return A list of matching entities, or an empty list if none match
+     * @throws DAOException If an error occurs during the operation
+     */
+    public List<T> findByField(String fieldName, Object value) throws DAOException {
+        try (Session session = openSession()) {
+            CriteriaBuilder cb = session.getCriteriaBuilder();
+            CriteriaQuery<T> cq = cb.createQuery(entityClass);
+            Root<T> root = cq.from(entityClass);
+            cq.select(root).where(cb.equal(root.get(fieldName), value));
+            
+            return session.createQuery(cq).getResultList();
+        } catch (HibernateException ex) {
+            LOGGER.log(Level.SEVERE, "Error finding entities by field: " + fieldName, ex);
+            throw new DAOException("Failed to find entities by field: " + fieldName, ex);
+        }
+    }
 
+    /**
+     * Finds a unique entity by a specific field value.
+     * 
+     * @param fieldName The name of the field to match
+     * @param value The value to match
+     * @return An Optional containing the entity if found, empty otherwise
+     * @throws DAOException If an error occurs during the operation or multiple entities are found
+     */
+    public Optional<T> findUniqueByField(String fieldName, Object value) throws DAOException {
+        List<T> results = findByField(fieldName, value);
+        
+        if (results.isEmpty()) {
+            return Optional.empty();
+        } else if (results.size() > 1) {
+            throw new DAOException("Multiple entities found with " + fieldName + " = " + value);
+        } else {
+            return Optional.of(results.get(0));
+        }
+    }
+
+    /**
+     * Executes a named query with parameters.
+     * 
+     * @param queryName The name of the query to execute
+     * @param parameters Parameters to bind to the query
+     * @return A list of results, or an empty list if no results
+     * @throws DAOException If an error occurs during the operation
+     */
+    public List<T> executeNamedQuery(String queryName, Map<String, Object> parameters) throws DAOException {
+        try (Session session = openSession()) {
+            Query<T> query = session.createNamedQuery(queryName, entityClass);
+            
+            if (parameters != null) {
+                parameters.forEach(query::setParameter);
+            }
+            
+            return query.getResultList();
+        } catch (HibernateException ex) {
+            LOGGER.log(Level.SEVERE, "Error executing named query: " + queryName, ex);
+            throw new DAOException("Failed to execute named query: " + queryName, ex);
+        }
+    }
+
+    /**
+     * Searches for entities using multiple criteria with pagination.
+     * 
+     * @param criteria A map of field names and their values to match
+     * @param sortBy The field to sort by
+     * @param ascending Whether to sort in ascending order
+     * @param offset The starting index of results
+     * @param limit The maximum number of results to return
+     * @return A list of entities matching the criteria
+     * @throws DAOException If an error occurs during the operation
+     */
+    public List<T> search(Map<String, Object> criteria, String sortBy, boolean ascending, 
+                         int offset, int limit) throws DAOException {
+        try (Session session = openSession()) {
+            CriteriaBuilder cb = session.getCriteriaBuilder();
+            CriteriaQuery<T> cq = cb.createQuery(entityClass);
+            Root<T> root = cq.from(entityClass);
+            
+            // Add search criteria
+            if (criteria != null && !criteria.isEmpty()) {
+                List<Predicate> predicates = new ArrayList<>();
+                
+                criteria.forEach((field, value) -> {
+                    if (value instanceof String) {
+                        predicates.add(cb.like(root.get(field), "%" + value + "%"));
+                    } else {
+                        predicates.add(cb.equal(root.get(field), value));
+                    }
+                });
+                
+                cq.where(predicates.toArray(new Predicate[0]));
+            }
+            
+            // Add sorting
+            if (sortBy != null && !sortBy.isEmpty()) {
+                Order order = ascending ? cb.asc(root.get(sortBy)) : cb.desc(root.get(sortBy));
+                cq.orderBy(order);
+            }
+            
+            // Execute with pagination
+            return session.createQuery(cq)
+                    .setFirstResult(offset)
+                    .setMaxResults(limit)
+                    .getResultList();
+        } catch (HibernateException ex) {
+            LOGGER.log(Level.SEVERE, "Error searching entities", ex);
+            throw new DAOException("Failed to search entities", ex);
+        }
+    }
+
+    /**
+     * Counts all entities of the managed type.
+     * 
+     * @return The total count of entities
+     * @throws DAOException If an error occurs during the operation
+     */
+    public long count() throws DAOException {
+        try (Session session = openSession()) {
+            CriteriaBuilder cb = session.getCriteriaBuilder();
+            CriteriaQuery<Long> cq = cb.createQuery(Long.class);
+            Root<T> root = cq.from(entityClass);
+            cq.select(cb.count(root));
+            
+            return session.createQuery(cq).getSingleResult();
+        } catch (HibernateException ex) {
+            LOGGER.log(Level.SEVERE, "Error counting entities", ex);
+            throw new DAOException("Failed to count entities", ex);
+        }
+    }
+
+    /**
+     * Finds entities created today.
+     * 
+     * @param dateField The name of the date field to check
+     * @return A list of entities created today
+     * @throws DAOException If an error occurs during the operation
+     */
+    public List<T> findCreatedToday(String dateField) throws DAOException {
+        try (Session session = openSession()) {
+            LocalDate today = LocalDate.now();
+            LocalDateTime startOfDay = today.atStartOfDay();
+            LocalDateTime endOfDay = today.plusDays(1).atStartOfDay();
+            
+            Date startDate = Date.from(startOfDay.atZone(ZoneId.systemDefault()).toInstant());
+            Date endDate = Date.from(endOfDay.atZone(ZoneId.systemDefault()).toInstant());
+            
+            CriteriaBuilder cb = session.getCriteriaBuilder();
+            CriteriaQuery<T> cq = cb.createQuery(entityClass);
+            Root<T> root = cq.from(entityClass);
+            
+            cq.select(root).where(
+                cb.between(root.get(dateField), startDate, endDate)
+            );
+            
+            return session.createQuery(cq).getResultList();
+        } catch (HibernateException ex) {
+            LOGGER.log(Level.SEVERE, "Error finding entities created today", ex);
+            throw new DAOException("Failed to find entities created today", ex);
+        }
+    }
+
+    /**
+     * Converts a date string to a Date object.
+     * 
+     * @param dateString The date string to convert
+     * @param format The format of the date string
+     * @return The converted Date object
+     * @throws ParseException If the date string cannot be parsed
+     */
+    protected Date parseDate(String dateString, String format) throws ParseException {
+        SimpleDateFormat dateFormat = new SimpleDateFormat(format, Locale.ENGLISH);
+        return dateFormat.parse(dateString);
+    }
+
+    /**
+     * Converts an entity to its JSON representation.
+     * 
+     * @param entity The entity to convert
+     * @return A JSON string representing the entity
+     */
+    public String toJson(T entity) {
+        return gson.toJson(entity);
+    }
+
+    /**
+     * Converts a list of entities to its JSON representation.
+     * 
+     * @param entities The list of entities to convert
+     * @return A JSON string representing the list of entities
+     */
+    public String toJson(List<T> entities) {
+        return gson.toJson(entities);
+    }
+    
+    /**
+     * Creates an error response in JSON format.
+     * 
+     * @param errorCode The error code
+     * @param errorMessage The error message
+     * @return A JSON string representing the error
+     */
+    protected String createErrorResponse(int errorCode, String errorMessage) {
+        JsonObject error = new JsonObject();
+        error.addProperty("error_code", errorCode);
+        error.addProperty("error_description", errorMessage);
+        return gson.toJson(error);
+    }
+    
+    /**
+     * Custom exception class for DAO operations.
+     */
+    public static class DAOException extends Exception {
+        private static final long serialVersionUID = 1L;
+        
+        public DAOException(String message) {
+            super(message);
+        }
+        
+        public DAOException(String message, Throwable cause) {
+            super(message, cause);
+        }
+    }
+}
